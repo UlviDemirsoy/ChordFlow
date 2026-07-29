@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CameraStage } from '../CameraStage'
 import { useHandTracking } from '../../hooks/useHandTracking'
 import { useLeftHandClassification } from '../../hooks/useLeftHandClassification'
@@ -28,6 +28,7 @@ function stableLabelText(label: number | null, prefix: string) {
 
 export function InstrumentView() {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const startingRef = useRef(false)
   const [tonic, setTonic] = useState<Tonic>('C')
   const [mode, setMode] = useState<ScaleMode>('major')
   const [audioError, setAudioError] = useState<string | null>(null)
@@ -37,7 +38,6 @@ export function InstrumentView() {
     result,
     cameraActive,
     start,
-    stop,
   } = useHandTracking({ videoRef })
   const left = useLeftHandClassification(result)
   const right = useRightHandClassification(result)
@@ -57,27 +57,54 @@ export function InstrumentView() {
     trackingError || left.error || right.error || audioError || null
   const scaleDegrees = getScaleDegreeNotes(tonic, mode)
 
-  const handleStart = async () => {
-    setAudioError(null)
-    try {
-      await instrument.unlockAudio()
-      await start()
-    } catch (error) {
-      setAudioError(
-        error instanceof Error ? error.message : 'Ses motoru başlatılamadı.',
-      )
-    }
-  }
+  const unlockAudioRef = useRef(instrument.unlockAudio)
+  unlockAudioRef.current = instrument.unlockAudio
 
-  const handleStop = () => {
-    stop()
-    void instrument.stopAudio()
-  }
+  useEffect(() => {
+    if (
+      !modelsReady ||
+      cameraActive ||
+      startingRef.current ||
+      trackingStatus === 'requesting-camera' ||
+      trackingStatus === 'running'
+    ) {
+      return
+    }
+
+    startingRef.current = true
+    void start()
+      .catch((error: unknown) => {
+        setAudioError(
+          error instanceof Error ? error.message : 'Kamera başlatılamadı.',
+        )
+      })
+      .finally(() => {
+        startingRef.current = false
+      })
+  }, [cameraActive, modelsReady, start, trackingStatus])
+
+  useEffect(() => {
+    const unlockOnGesture = () => {
+      setAudioError(null)
+      void unlockAudioRef.current().catch((error: unknown) => {
+        setAudioError(
+          error instanceof Error ? error.message : 'Ses motoru başlatılamadı.',
+        )
+      })
+    }
+
+    window.addEventListener('pointerdown', unlockOnGesture, { once: true })
+    window.addEventListener('keydown', unlockOnGesture, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', unlockOnGesture)
+      window.removeEventListener('keydown', unlockOnGesture)
+    }
+  }, [])
 
   return (
     <main className="instrument-shell">
       <header className="instrument-header">
-        <a className="brand" href="/" aria-label="ChordFlow ana sayfa">
+        <a className="brand" href="/play" aria-label="ChordFlow ana sayfa">
           <span className="brand-mark" aria-hidden="true">
             CF
           </span>
@@ -95,35 +122,6 @@ export function InstrumentView() {
         status={trackingStatus}
         cameraActive={cameraActive}
       />
-
-      <div className="instrument-controls">
-        {cameraActive ? (
-          <>
-            <button
-              className={`control-button${instrument.muted ? '' : ' is-active'}`}
-              onClick={instrument.toggleMuted}
-            >
-              {instrument.muted ? 'Sesi aç' : 'Mute'}
-            </button>
-            <button
-              className="control-button control-button--stop"
-              onClick={handleStop}
-            >
-              <span aria-hidden="true">■</span>
-              Durdur
-            </button>
-          </>
-        ) : (
-          <button
-            className="control-button"
-            onClick={() => void handleStart()}
-            disabled={!modelsReady || trackingStatus === 'requesting-camera'}
-          >
-            <span aria-hidden="true">●</span>
-            {!modelsReady ? 'Modeller yükleniyor...' : 'Synth’i başlat'}
-          </button>
-        )}
-      </div>
 
       <aside className="instrument-panel">
         <div className="instrument-panel-header">
@@ -147,8 +145,12 @@ export function InstrumentView() {
             {instrument.activeChord
               ? `${instrument.activeChord.rootName} · ${getChordQualityLabel(instrument.activeChord.quality)}`
               : cameraActive
-                ? 'İki elden stabil sinyal bekleniyor'
-                : 'Synth başlatılmadı'}
+                ? instrument.audioReady
+                  ? 'İki elden stabil sinyal bekleniyor'
+                  : 'İlk dokunuşla sesi aç'
+                : modelsReady
+                  ? 'Kamera açılıyor...'
+                  : 'Modeller yükleniyor...'}
           </small>
         </section>
 
