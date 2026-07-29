@@ -98,14 +98,13 @@ export function useLeftHandClassification(
         setPrediction(nextPrediction)
         setError(null)
 
-        const history = [
-          ...historyRef.current,
+        const nextVote: LeftHandDegree | null =
           nextPrediction.label === 0
             ? 0
             : nextPrediction.accepted
               ? nextPrediction.label
-              : null,
-        ].slice(-HISTORY_SIZE)
+              : null
+        const history = [...historyRef.current, nextVote].slice(-HISTORY_SIZE)
         historyRef.current = history
 
         const voteCounts = new Map<LeftHandDegree, number>()
