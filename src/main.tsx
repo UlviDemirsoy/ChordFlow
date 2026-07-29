@@ -11,6 +11,10 @@ import { RightClassifierTest } from './components/classifier/RightClassifierTest
 import { InstrumentView } from './components/instrument/InstrumentView.tsx'
 
 const currentPath = window.location.pathname
+if (currentPath === '/') {
+  window.location.replace('/play')
+}
+
 const page =
   currentPath === '/collect' ? (
     <DatasetCollector />
@@ -20,7 +24,7 @@ const page =
     <ClassifierTest />
   ) : currentPath === '/classify/right' ? (
     <RightClassifierTest />
-  ) : currentPath === '/play' ? (
+  ) : currentPath === '/play' || currentPath === '/' ? (
     <InstrumentView />
   ) : (
     <App />

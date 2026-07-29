@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/play",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
