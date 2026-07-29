@@ -1,0 +1,7 @@
+matplotlib
+numpy
+onnx
+onnxscript
+pandas
+scikit-learn
+torch

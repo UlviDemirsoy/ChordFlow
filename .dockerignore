@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+.git
+.cursor
+model/data
+model/training_outputs
+*.log
+.venv
+venv
+__pycache__
+*.md
+!README.md

@@ -1,0 +1,23 @@
+{
+  "source_checkpoint": "model\\training_outputs\\left_hand\\run_20260729_193928\\left_hand_model.pt",
+  "input_name": "landmarks",
+  "input_shape": [
+    "batch",
+    63
+  ],
+  "output_name": "logits",
+  "class_labels": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "preprocessing_embedded": true,
+  "recommended_confidence_threshold": 0.85,
+  "recommended_margin_threshold": 0.2,
+  "note": "Class 0 explicit unknown sınıfıdır. Confidence/margin eşikleri ayrıca kararsız/rejected sonuç üretir."
+}

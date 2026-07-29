@@ -1,0 +1,46 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local dataset captures (photos + landmark CSV)
+model/data/**/*.jpg
+model/data/**/*.jpeg
+model/data/**/*.png
+model/data/**/landmarks.csv
+
+# Training checkpoints and generated plots
+model/training_outputs/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
