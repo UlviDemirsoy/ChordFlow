@@ -151,14 +151,12 @@ tonalitenin akor kök derecesini belirler. Sağ el sınıfları:
 5 → Diminished
 ```
 
-Frontend'den 12 tonal kökten biri ve `Major/Minor` gam seçilir. Her iki elin
-sonucu temporal `3/5` çoğunluk filtresinden geçtiğinde Web Audio synth akoru çalar.
+Frontend'den 12 tonal kökten biri ve `Major/Minor` gam seçilir. Sayfa açılınca
+kamera ve ses otomatik başlar; her iki elin sonucu temporal `3/5` çoğunluk
+filtresinden geçtiğinde Web Audio synth akoru çalar.
 Unknown, kararsız sonuç, el kaybı, kamera durması veya sekmenin gizlenmesi sesi
 yumuşak release ile kapatır.
 
 Sağ el wrist `Y` koordinatı classifier'dan bağımsız olarak expression volume
 kontrol eder: `Y=0` maksimum, `Y=1` minimum sestir. EMA smoothing ve deadband
 küçük landmark titreşimlerinin ses seviyesini bozmasını engeller.
-
-Tarayıcı autoplay politikası nedeniyle kamera ve ses aynı `Synth’i başlat`
-tıklamasıyla etkinleştirilir.
