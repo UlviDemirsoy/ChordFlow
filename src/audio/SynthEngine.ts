@@ -54,12 +54,15 @@ export class SynthEngine {
   }
 
   playChord(frequencies: readonly number[]) {
-    if (
-      !this.context ||
-      !this.masterGain ||
-      this.context.state !== 'running' ||
-      frequencies.length === 0
-    ) {
+    if (!this.context || !this.masterGain || frequencies.length === 0) {
+      return
+    }
+
+    if (this.context.state === 'suspended') {
+      void this.context.resume()
+    }
+
+    if (this.context.state !== 'running' && this.context.state !== 'suspended') {
       return
     }
 

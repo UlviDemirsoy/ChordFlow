@@ -61,45 +61,67 @@ export function InstrumentView() {
   unlockAudioRef.current = instrument.unlockAudio
 
   useEffect(() => {
-    if (
-      !modelsReady ||
-      cameraActive ||
-      startingRef.current ||
-      trackingStatus === 'requesting-camera' ||
-      trackingStatus === 'running'
-    ) {
-      return
+    let cancelled = false
+
+    const boot = async () => {
+      if (!modelsReady || cancelled) {
+        return
+      }
+
+      setAudioError(null)
+      try {
+        await unlockAudioRef.current()
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setAudioError(
+            error instanceof Error ? error.message : 'Ses motoru başlatılamadı.',
+          )
+        }
+      }
+
+      if (
+        cancelled ||
+        cameraActive ||
+        startingRef.current ||
+        trackingStatus === 'requesting-camera' ||
+        trackingStatus === 'running'
+      ) {
+        return
+      }
+
+      startingRef.current = true
+      try {
+        await start()
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setAudioError(
+            error instanceof Error ? error.message : 'Kamera başlatılamadı.',
+          )
+        }
+      } finally {
+        startingRef.current = false
+      }
     }
 
-    startingRef.current = true
-    void start()
-      .catch((error: unknown) => {
-        setAudioError(
-          error instanceof Error ? error.message : 'Kamera başlatılamadı.',
-        )
-      })
-      .finally(() => {
-        startingRef.current = false
-      })
+    void boot()
+    return () => {
+      cancelled = true
+    }
   }, [cameraActive, modelsReady, start, trackingStatus])
 
   useEffect(() => {
-    const unlockOnGesture = () => {
-      setAudioError(null)
-      void unlockAudioRef.current().catch((error: unknown) => {
-        setAudioError(
-          error instanceof Error ? error.message : 'Ses motoru başlatılamadı.',
-        )
-      })
+    if (!cameraActive || instrument.audioReady) {
+      return
     }
 
-    window.addEventListener('pointerdown', unlockOnGesture, { once: true })
-    window.addEventListener('keydown', unlockOnGesture, { once: true })
+    const intervalId = window.setInterval(() => {
+      void unlockAudioRef.current().catch(() => undefined)
+    }, 500)
+
     return () => {
-      window.removeEventListener('pointerdown', unlockOnGesture)
-      window.removeEventListener('keydown', unlockOnGesture)
+      window.clearInterval(intervalId)
     }
-  }, [])
+  }, [cameraActive, instrument.audioReady])
 
   return (
     <main className="instrument-shell">
@@ -145,9 +167,7 @@ export function InstrumentView() {
             {instrument.activeChord
               ? `${instrument.activeChord.rootName} · ${getChordQualityLabel(instrument.activeChord.quality)}`
               : cameraActive
-                ? instrument.audioReady
-                  ? 'İki elden stabil sinyal bekleniyor'
-                  : 'İlk dokunuşla sesi aç'
+                ? 'İki elden stabil sinyal bekleniyor'
                 : modelsReady
                   ? 'Kamera açılıyor...'
                   : 'Modeller yükleniyor...'}
