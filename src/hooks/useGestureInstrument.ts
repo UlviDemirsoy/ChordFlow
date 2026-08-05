@@ -18,6 +18,8 @@ interface UseGestureInstrumentInput {
   tonic: Tonic
   mode: ScaleMode
   expressionVolume: number
+  /** Right palm tilt 0–1 → oscillator mix */
+  handTilt: number
 }
 
 export function useGestureInstrument({
@@ -27,6 +29,7 @@ export function useGestureInstrument({
   tonic,
   mode,
   expressionVolume,
+  handTilt,
 }: UseGestureInstrumentInput) {
   const engineRef = useRef<SynthEngine | null>(null)
   const chordKeyRef = useRef<string | null>(null)
@@ -64,6 +67,10 @@ export function useGestureInstrument({
   useEffect(() => {
     engineRef.current?.setVolume(volume * expressionVolume)
   }, [expressionVolume, volume])
+
+  useEffect(() => {
+    engineRef.current?.setTilt(handTilt)
+  }, [handTilt])
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -156,6 +163,7 @@ export function useGestureInstrument({
     muted,
     volume,
     expressionVolume,
+    handTilt,
     activeChord,
     unlockAudio,
     stopAudio,

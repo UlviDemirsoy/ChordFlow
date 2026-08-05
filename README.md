@@ -136,7 +136,7 @@ sonucudur; confidence `%85` veya ilk iki sınıf arasındaki margin `%20` altın
 kaldığında sonuç ayrıca `kararsız` olarak reddedilir.
 
 Sağ el testi `/classify/right` adresindedir. Sağ el argmax sınıfı confidence
-reddi olmadan son 5 frame içindeki `3/5` çoğunluk filtresine girer.
+reddi olmadan son 3 frame içindeki `2/3` çoğunluk filtresine girer.
 
 ## Gesture Synth
 
@@ -152,7 +152,7 @@ tonalitenin akor kök derecesini belirler. Sağ el sınıfları:
 ```
 
 Frontend'den 12 tonal kökten biri ve `Major/Minor` gam seçilir. Sayfa açılınca
-kamera ve ses otomatik başlar; her iki elin sonucu temporal `3/5` çoğunluk
+kamera ve ses otomatik başlar; her iki elin sonucu temporal `2/3` çoğunluk
 filtresinden geçtiğinde Web Audio synth akoru çalar.
 Unknown, kararsız sonuç, el kaybı, kamera durması veya sekmenin gizlenmesi sesi
 yumuşak release ile kapatır.

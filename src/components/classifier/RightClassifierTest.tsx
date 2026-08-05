@@ -123,7 +123,7 @@ export function RightClassifierTest() {
         </div>
 
         <div className="stable-result">
-          <span>Temporal sonuç · 3/5 çoğunluk</span>
+          <span>Temporal · 2/3 majority</span>
           <strong>
             {stableLabel === 0
               ? 'UNKNOWN'

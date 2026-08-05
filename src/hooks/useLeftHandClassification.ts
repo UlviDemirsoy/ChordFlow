@@ -8,9 +8,9 @@ import {
 
 type ModelStatus = 'loading' | 'ready' | 'error'
 
-const INFERENCE_INTERVAL_MS = 100
-const HISTORY_SIZE = 5
-const REQUIRED_VOTES = 3
+const INFERENCE_INTERVAL_MS = 50
+const HISTORY_SIZE = 3
+const REQUIRED_VOTES = 2
 
 function findLeftHand(result: HandLandmarkerResult | null) {
   if (!result) {

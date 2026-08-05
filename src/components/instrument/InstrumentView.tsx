@@ -5,6 +5,7 @@ import { useLeftHandClassification } from '../../hooks/useLeftHandClassification
 import { useRightHandClassification } from '../../hooks/useRightHandClassification'
 import { useGestureInstrument } from '../../hooks/useGestureInstrument'
 import { useRightWristVolume } from '../../hooks/useRightWristVolume'
+import { useRightHandTilt } from '../../hooks/useRightHandTilt'
 import {
   getChordQualityLabel,
   getScaleDegreeNotes,
@@ -18,7 +19,7 @@ import './InstrumentView.css'
 
 function stableLabelText(label: number | null, prefix: string) {
   if (label === null) {
-    return 'Bekleniyor'
+    return 'Waiting'
   }
   if (label === 0) {
     return 'Unknown'
@@ -42,6 +43,7 @@ export function InstrumentView() {
   const left = useLeftHandClassification(result)
   const right = useRightHandClassification(result)
   const wristVolume = useRightWristVolume(result)
+  const handTilt = useRightHandTilt(result)
   const instrument = useGestureInstrument({
     leftStableLabel: left.stableLabel,
     rightStableLabel: right.stableLabel,
@@ -49,6 +51,7 @@ export function InstrumentView() {
     tonic,
     mode,
     expressionVolume: wristVolume.expressionVolume,
+    handTilt: handTilt.tilt,
   })
 
   const modelsReady =
@@ -74,7 +77,7 @@ export function InstrumentView() {
       } catch (error: unknown) {
         if (!cancelled) {
           setAudioError(
-            error instanceof Error ? error.message : 'Ses motoru başlatılamadı.',
+            error instanceof Error ? error.message : 'Audio failed to start.',
           )
         }
       }
@@ -95,7 +98,7 @@ export function InstrumentView() {
       } catch (error: unknown) {
         if (!cancelled) {
           setAudioError(
-            error instanceof Error ? error.message : 'Kamera başlatılamadı.',
+            error instanceof Error ? error.message : 'Camera failed to start.',
           )
         }
       } finally {
@@ -126,7 +129,7 @@ export function InstrumentView() {
   return (
     <main className="instrument-shell">
       <header className="instrument-header">
-        <a className="brand" href="/play" aria-label="ChordFlow ana sayfa">
+        <a className="brand" href="/play" aria-label="ChordFlow home">
           <span className="brand-mark" aria-hidden="true">
             CF
           </span>
@@ -135,7 +138,6 @@ export function InstrumentView() {
             <small>Gesture Synth</small>
           </span>
         </a>
-        <span className="instrument-route">/play</span>
       </header>
 
       <CameraStage
@@ -147,10 +149,7 @@ export function InstrumentView() {
 
       <aside className="instrument-panel">
         <div className="instrument-panel-header">
-          <div>
-            <p className="eyebrow">TWO-HAND INSTRUMENT</p>
-            <h1>Gesture Synth</h1>
-          </div>
+          <span className="instrument-panel-title">Now playing</span>
           <span
             className={`instrument-status instrument-status--${instrument.status}`}
           >
@@ -161,22 +160,21 @@ export function InstrumentView() {
         <section
           className={`active-chord${instrument.activeChord ? ' is-playing' : ''}`}
         >
-          <span>AKTİF AKOR</span>
           <strong>{instrument.activeChord?.displayName ?? '—'}</strong>
           <small>
             {instrument.activeChord
-              ? `${instrument.activeChord.rootName} · ${getChordQualityLabel(instrument.activeChord.quality)}`
+              ? getChordQualityLabel(instrument.activeChord.quality)
               : cameraActive
-                ? 'İki elden stabil sinyal bekleniyor'
+                ? 'Hold a left and right gesture'
                 : modelsReady
-                  ? 'Kamera açılıyor...'
-                  : 'Modeller yükleniyor...'}
+                  ? 'Opening camera…'
+                  : 'Loading models…'}
           </small>
         </section>
 
         <div className="tonality-controls">
           <label>
-            <span>Tonal kök</span>
+            <span>Key</span>
             <select
               value={tonic}
               onChange={(event) => setTonic(event.target.value as Tonic)}
@@ -189,7 +187,7 @@ export function InstrumentView() {
             </select>
           </label>
           <label>
-            <span>Gam</span>
+            <span>Mode</span>
             <select
               value={mode}
               onChange={(event) =>
@@ -203,7 +201,7 @@ export function InstrumentView() {
         </div>
 
         <div className="degree-map">
-          <span>Sol el dereceleri · {tonic} {mode}</span>
+          <span>Left · degrees</span>
           <div className="degree-map-grid">
             {scaleDegrees.map(({ degree, note }) => (
               <div
@@ -219,16 +217,11 @@ export function InstrumentView() {
 
         <div className="hand-signals">
           <div>
-            <span>Sol el · kök derece</span>
-            <strong>{stableLabelText(left.stableLabel, 'Derece')}</strong>
-            <small>
-              {left.prediction
-                ? `${(left.prediction.confidence * 100).toFixed(1)}% confidence`
-                : 'Sol el yok'}
-            </small>
+            <span>Left</span>
+            <strong>{stableLabelText(left.stableLabel, 'Deg')}</strong>
           </div>
           <div>
-            <span>Sağ el · akor tipi</span>
+            <span>Right</span>
             <strong>
               {right.stableLabel
                 ? getChordQualityLabel(
@@ -236,53 +229,34 @@ export function InstrumentView() {
                   )
                 : stableLabelText(right.stableLabel, 'Class')}
             </strong>
-            <small>
-              {right.prediction
-                ? `${(right.prediction.confidence * 100).toFixed(1)}% confidence`
-                : 'Sağ el yok'}
-            </small>
           </div>
         </div>
 
         <label className="volume-control">
           <span>
-            Sağ wrist volume
+            Volume
             <b>{Math.round(instrument.expressionVolume * 100)}%</b>
           </span>
           <meter
             min="0"
             max="1"
             value={instrument.expressionVolume}
-            aria-label="Sağ wrist expression volume"
+            aria-label="Right wrist volume"
           />
-          <small>
-            {wristVolume.wristY === null
-              ? 'Sağ el bekleniyor'
-              : `Filtreli wrist Y: ${wristVolume.wristY.toFixed(3)}`}
-          </small>
         </label>
 
         <label className="volume-control">
           <span>
-            Master limit
-            <b>{Math.round(instrument.volume * 100)}%</b>
+            Timbre
+            <b>{Math.round(instrument.handTilt * 100)}%</b>
           </span>
-          <input
-            type="range"
+          <meter
             min="0"
             max="1"
-            step="0.01"
-            value={instrument.volume}
-            onChange={(event) =>
-              instrument.setVolume(Number(event.target.value))
-            }
+            value={instrument.handTilt}
+            aria-label="Right hand tilt timbre"
           />
         </label>
-
-        <div className="gesture-map">
-          <span>Sağ el sınıfları</span>
-          <p>1 Major · 2 Sus4 · 3 Dominant 7 · 4 Minor · 5 Diminished</p>
-        </div>
 
         {combinedError && (
           <p className="instrument-error" role="alert">

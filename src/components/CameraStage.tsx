@@ -15,13 +15,13 @@ interface CameraStageProps {
 }
 
 const STATUS_LABELS: Record<TrackingStatus, string> = {
-  idle: 'Başlatılıyor',
-  'loading-model': 'Model yükleniyor',
-  ready: 'Kamera hazır',
-  'requesting-camera': 'Kamera izni bekleniyor',
-  running: 'Canlı takip',
-  stopped: 'Kamera durduruldu',
-  error: 'Bağlantı hatası',
+  idle: 'Starting',
+  'loading-model': 'Loading model',
+  ready: 'Camera ready',
+  'requesting-camera': 'Waiting for camera',
+  running: 'Live',
+  stopped: 'Camera stopped',
+  error: 'Connection error',
 }
 
 export function CameraStage({
@@ -79,19 +79,19 @@ export function CameraStage({
   }, [result, videoRef])
 
   return (
-    <section className="camera-card" aria-label="Kamera ve el takip alanı">
+    <section className="camera-card" aria-label="Camera and hand tracking">
       <div className="camera-stage">
         <video
           ref={videoRef}
           className="camera-video"
           playsInline
           muted
-          aria-label="Canlı kamera görüntüsü"
+          aria-label="Live camera feed"
         />
         <canvas
           ref={canvasRef}
           className="landmark-canvas"
-          aria-label="Algılanan el noktaları"
+          aria-label="Detected hand landmarks"
         />
 
         {!cameraActive && (
@@ -99,8 +99,8 @@ export function CameraStage({
             <div className="hand-mark" aria-hidden="true">
               ◇
             </div>
-            <p>Kamerayı açarak el takibini başlat</p>
-            <span>Görüntü yalnızca bu cihazda işlenir.</span>
+            <p>Open the camera to start hand tracking</p>
+            <span>Video stays on this device.</span>
           </div>
         )}
 
