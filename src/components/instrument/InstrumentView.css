@@ -13,6 +13,11 @@
   gap: 16px;
 }
 
+.instrument-shell .live-badge {
+  top: 92px;
+  left: 24px;
+}
+
 .instrument-route {
   padding: 6px 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
