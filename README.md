@@ -3,6 +3,8 @@
 Tarayıcıda çalışan gerçek zamanlı gesture synthesizer: kamera → el landmarkları →
 çift ONNX MLP sınıflandırıcı → akor / volume / timbre → Web Audio.
 
+**Live demo:** [chord-flow-xi.vercel.app/play](https://chord-flow-xi.vercel.app/play)
+
 ---
 
 ## Mimari özeti
