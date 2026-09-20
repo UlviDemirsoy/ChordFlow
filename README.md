@@ -136,6 +136,84 @@ Akor çözümü uygulama katmanındadır: `sol derece + sağ kalite + seçilen t
 → MIDI frekansları. Volume ve timbre classifier’dan bağımsız landmark
 ekspresyonudur.
 
+### Dataset
+
+Örnekler MediaPipe Hand Landmarker ile tek cihazdan toplanır; her satır
+`landmarks.csv` içinde 21×3 ham koordinat + handedness skoru tutar. Fotoğraflar
+repo’ya girmez (yalnızca lokal eğitim için).
+
+| Dataset | Örnek | Sınıf | Ortalama handedness | Kaynak run |
+|---------|------:|------:|--------------------:|------------|
+| Sol el | **2 261** | 8 (Unknown + derece 1–7) | 0.978 | `run_20260729_193928` |
+| Sağ el | **1 592** | 6 (Unknown + tip 1–5) | 0.981 | `run_20260729_205333` |
+
+Sınıf dengesine yaklaşmak için loss’ta inverse-frequency class weight kullanılır.
+Bitişik kamera karelerinin train/test’e sızmasını azaltmak için her sınıf zaman
+sırasında **temporal blok**lara (size 20, gap 2 s) ayrılır; bloklar
+≈70 / 15 / 15 train–val–test dağıtılır.
+
+![Dataset class distribution](docs/figures/dataset_class_distribution.png)
+
+![Left temporal split](docs/figures/left_split_distribution.png)
+
+![Right temporal split](docs/figures/right_split_distribution.png)
+
+> **Not:** Kişi / session metadata’sı olmadığı için split kişi-bağımsız
+> genellemeyi garanti etmez; held-out kullanıcılarla ek değerlendirme gerekir.
+
+### Deneysel sonuçlar
+
+Ship edilen ONNX modelleri yukarıdaki run’lardan export edilmiştir. Metrikler
+**test split** üzerindedir (temporal blok hold-out).
+
+| Model | Best epoch | Test acc. | Macro-F1 | Test N |
+|-------|----------:|----------:|---------:|-------:|
+| Sol el MLP | 51 | **97.6 %** | **0.977** | 327 |
+| Sağ el MLP | 6 | 67.3 % | 0.625 | 217 |
+
+**Sol el — sınıf bazlı F1 (test)**
+
+| Sınıf | Precision | Recall | F1 | Support |
+|-------|----------:|-------:|---:|--------:|
+| Unknown | 0.90 | 0.96 | 0.93 | 49 |
+| Degree 1 | 1.00 | 0.90 | 0.95 | 40 |
+| Degree 2 | 0.95 | 1.00 | 0.97 | 38 |
+| Degree 3–5, 7 | 1.00 | 1.00 | 1.00 | 40 each |
+| Degree 6 | 0.97 | 0.95 | 0.96 | 40 |
+
+**Sağ el — sınıf bazlı F1 (test)**
+
+| Sınıf | Precision | Recall | F1 | Support |
+|-------|----------:|-------:|---:|--------:|
+| Unknown | 0.97 | 1.00 | 0.99 | 33 |
+| Major (1) | 0.08 | 0.06 | 0.07 | 16 |
+| Sus4 (2) | 0.41 | 0.50 | 0.45 | 48 |
+| Dom7 (3) | 0.58 | 0.45 | 0.51 | 40 |
+| Minor (4) | 0.86 | 0.90 | 0.88 | 40 |
+| Dim (5) | 0.87 | 0.85 | 0.86 | 40 |
+
+Sağ elde Major / Sus4 / Dom7 ayrımı test setinde zayıf kalır; canlıda temporal
+çoğunluk (2/3) ve gesture UX bunu kısmen yumuşatır. Sol elde confidence ≥ 0.85
+ve margin ≥ 0.20 reject kuralı ek güvenlik sağlar.
+
+![Left confusion matrix](docs/figures/left_confusion_matrix.png)
+
+![Right confusion matrix](docs/figures/right_confusion_matrix.png)
+
+![Left training history](docs/figures/left_training_history.png)
+
+![Right training history](docs/figures/right_training_history.png)
+
+![Left confidence analysis](docs/figures/left_confidence_analysis.png)
+
+![Right confidence analysis](docs/figures/right_confidence_analysis.png)
+
+Grafikleri yeniden üretmek için (lokal `landmarks.csv` + training_outputs gerekir):
+
+```bash
+python model/generate_readme_figures.py
+```
+
 ---
 
 ## Çalıştırma

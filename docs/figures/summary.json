@@ -1,0 +1,18 @@
+{
+  "left": {
+    "n": 2261,
+    "mean_handedness": 0.9777399178418055,
+    "test_accuracy": 0.9755351681957186,
+    "test_macro_f1": 0.9768057226467791,
+    "best_epoch": 51,
+    "run": "run_20260729_193928"
+  },
+  "right": {
+    "n": 1592,
+    "mean_handedness": 0.9805267180629711,
+    "test_accuracy": 0.6728110599078341,
+    "test_macro_f1": 0.6254534767443523,
+    "best_epoch": 6,
+    "run": "run_20260729_205333"
+  }
+}
