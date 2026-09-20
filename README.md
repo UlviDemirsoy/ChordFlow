@@ -1,6 +1,142 @@
 # ChordFlow
 
-MediaPipe Hand Landmarker ile gerçek zamanlı el takibi ve landmark dataset toplama uygulaması.
+Tarayıcıda çalışan gerçek zamanlı gesture synthesizer: kamera → el landmarkları →
+çift ONNX MLP sınıflandırıcı → akor / volume / timbre → Web Audio.
+
+---
+
+## Mimari özeti
+
+Tüm inference **client-side** çalışır. Video frame’ler cihazdan çıkmaz; sunucu
+yalnızca static Vite build + ONNX model dosyalarını servis eder.
+
+### Browser runtime stack
+
+| Katman | Teknoloji | Rol |
+|--------|-----------|-----|
+| UI | React 19 + Vite | `/play`, collector, classifier test sayfaları |
+| Kamera | `getUserMedia` + `<video>` | Canlı webcam akışı |
+| El takibi | **MediaPipe Tasks Vision** (`HandLandmarker`) | Web Worker içinde WASM/GPU; 2 el × 21 landmark × XYZ |
+| Sınıflandırma | **ONNX Runtime Web** (`onnxruntime-web/wasm`) | Sol + sağ MLP; ham `63` float → logits |
+| Müzik | **Web Audio API** | Triangle / saw / square chord synth, envelope, expression |
+| İfade | Landmark geometrisi (NN dışı) | Sağ wrist Y → volume; palm roll → timbre |
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         BROWSER (tek sekme)                             │
+│                                                                         │
+│  Webcam ──► Main thread (React)                                         │
+│                │                                                        │
+│                │ ImageBitmap + timestamp                                │
+│                ▼                                                        │
+│         ┌──────────────────────┐                                        │
+│         │  Web Worker          │  @mediapipe/tasks-vision               │
+│         │  HandLandmarker      │  WASM (+ GPU delegate fallback CPU)    │
+│         │  hand_landmarker.task│  numHands=2, VIDEO mode                │
+│         └──────────┬───────────┘                                        │
+│                    │ 21×3 landmarks / hand + handedness                 │
+│                    ▼                                                    │
+│         ┌──────────────────────┐     ┌──────────────────────┐           │
+│         │ LeftHandClassifier   │     │ RightHandClassifier  │           │
+│         │ left_hand_model.onnx │     │ right_hand_model.onnx│           │
+│         │ ORT WASM · paralel   │     │ ORT WASM · paralel   │           │
+│         └──────────┬───────────┘     └──────────┬───────────┘           │
+│                    │ 8-class logits             │ 6-class logits        │
+│                    ▼                            ▼                       │
+│         conf≥0.85 + margin≥0.20        argmax (reject yok)              │
+│         temporal vote 2/3 @ 50ms       temporal vote 2/3 @ 50ms         │
+│                    │                            │                       │
+│                    └──────────┬─────────────────┘                       │
+│                               ▼                                         │
+│                    resolveGestureChord(tonic, mode, L, R)               │
+│                               │                                         │
+│         wrist Y ──► volume    │    palm roll ──► osc mix / filter       │
+│                               ▼                                         │
+│                    SynthEngine (Web Audio)                              │
+│                    triangle + saw + square → lowpass → master           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### ML pipeline (eğitim → tarayıcı)
+
+Offline eğitim PyTorch ile yapılır; export edilen ONNX, **geometrik
+normalizasyon + train mean/std**’yi grafa gömer. Tarayıcı yalnızca ham
+landmark tensor’ü (`1×63`) verir.
+
+```text
+TRAIN (Python / PyTorch)                    BROWSER (ONNX Runtime Web)
+─────────────────────────                   ──────────────────────────
+landmarks.csv  (21×3 raw)                   MediaPipe landmarks (21×3)
+        │                                           │
+        ▼                                           ▼
+ geometric normalize                         [embedded in ONNX]
+  1. subtract wrist (lm0)                     aynı adımlar:
+  2. scale by wrist→middle MCP (lm9)            wrist center
+  3. rotate XY so palm points up                palm scale
+  4. clip [-4, 4]                               XY rotate + clip
+        │                                       train mean/std
+        ▼                                           │
+ train-only mean / std                          ▼
+        │                                   LeftHandMLP / RightHandMLP
+        ▼                                           │
+ LeftHandMLP                                    logits → softmax
+  63 → Linear(128) → BN → ReLU → Dropout            │
+     → Linear(64)  → ReLU → Dropout                 ▼
+     → Linear(C)                                class + confidence
+        │
+        ▼
+ export BrowserInferenceModel → public/models/*.onnx
+```
+
+### Model detayı
+
+Her iki el aynı MLP gövdesini kullanır; fark yalnızca çıktı sınıf sayısıdır.
+
+```text
+Input  float32[B, 63]     # 21 landmark × (x,y,z)  — ham veya (train'de) normalize
+
+  Linear(63 → 128)        # PyTorch default: Kaiming uniform (a=√5)
+  BatchNorm1d(128)        # affine=True, track_running_stats=True
+  ReLU()
+  Dropout(p=0.25)
+
+  Linear(128 → 64)        # Kaiming uniform
+  ReLU()
+  Dropout(p=0.15)         # 0.25 × 0.6
+
+  Linear(64 → C)          # logits; Softmax yok (CrossEntropy içinde)
+                          # C=8 sol, C=6 sağ
+```
+
+| Konu | Değer |
+|------|--------|
+| Activation | **ReLU** (gizli katmanlar); çıktıda raw logits |
+| Weight init | PyTorch `nn.Linear` default → **Kaiming uniform** (`a=√5`); bias uniform |
+| BatchNorm init | γ=1, β=0 (PyTorch default); running mean/var eğitimde güncellenir |
+| Custom init | Yok — `nn.Module` default’ları |
+| Loss | **Weighted CrossEntropy** — `w_c = N / (C · n_c)` (inverse frequency) |
+| Optimizer | **AdamW** — `lr=1e-3`, `weight_decay=1e-4` |
+| LR schedule | **ReduceLROnPlateau** — val loss ↓ değilse `factor=0.5`, patience 7, `min_lr=1e-6` |
+| Early stop | val loss iyileşmezse **patience=25**; en iyi checkpoint restore |
+| Epochs / batch | max 200 / 64 |
+| Seed | 42 |
+| Augment (train) | Gaussian noise σ=`0.015` (normalize sonrası feature’lara) |
+| Split | Temporal blok (size 20, gap 2s) → train 70% / val 15% / test 15% |
+| Feature scale | Train-only mean/std; ONNX’e buffer olarak gömülür |
+
+| | Sol el | Sağ el |
+|---|--------|--------|
+| Girdi | `float32[1, 63]` ham XYZ | aynı |
+| Sınıflar `C` | **8** — `0` Unknown + derece `1–7` | **6** — `0` Unknown + tip `1–5` |
+| Inference reject | confidence `< 0.85` veya top-2 margin `< 0.20` → kararsız | yok (argmax) |
+| Temporal | son 3 inference, **2/3** çoğunluk, throttle **50 ms** | aynı |
+| Çıktı anlamı | gam derecesi (kök) | Major / Sus4 / Dom7 / Minor / Dim |
+
+Akor çözümü uygulama katmanındadır: `sol derece + sağ kalite + seçilen tonic/mode`
+→ MIDI frekansları. Volume ve timbre classifier’dan bağımsız landmark
+ekspresyonudur.
+
+---
 
 ## Çalıştırma
 
